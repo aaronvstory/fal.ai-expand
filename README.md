@@ -8,6 +8,16 @@ Batch video generation tool using fal.ai Platform API to create AI videos from i
 - **GUI Mode**: Modern dark-themed Tkinter interface with drag-and-drop
 - **40+ AI Video Models**: Access Kling, Veo, Sora, Wan, and many more from fal.ai
 - **Queue Management**: Process up to 50 images with concurrent generation (5 workers)
+
+## 🤖 MCP Testing Status
+
+- ✅ **GitHub MCP**: Successfully created issue #1 via gh command
+- ✅ **TaskMaster AI MCP**: Created test task in .taskmaster/tasks/test_mcp_task.md  
+- ✅ **Desktop Commander MCP**: Successfully edited this README file
+- ✅ **Serena MCP**: Testing semantic code analysis (should find `FalAIKlingGenerator` class)
+- 🧠 **All MCPs**: Functional and operational!
+
+This project demonstrates integration with multiple MCP servers for enhanced AI capabilities.
 - **Ping-Pong Loop**: Create seamless looping videos with FFmpeg integration
 - **Smart Prompts**: 3 prompt slots with quick switching and full editor
 - **Negative Prompts**: Model-aware negative prompt support (auto-detected)
