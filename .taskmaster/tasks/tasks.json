@@ -1,0 +1,196 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Complete ComfyUI FLUX Outpainting Workflow Prerequisites",
+        "description": "Manually create and test FLUX outpainting workflow in ComfyUI, export as flux_outpaint.json",
+        "details": "Follow P0.1-P0.4 exactly: Start ComfyUI at G:/pinokio/api/comfy.git/app, add nodes (LoadImage, ImagePadForOutpaint, DualCLIPLoader, UNETLoader, CLIPTextEncode x2, KSampler, VAELoader/VAEEncode/VAEDecode, SaveImage), connect per diagram, test with 512x512 PNG (left/right/top/bottom=200, positive:'natural scene extension, seamless blend', negative:'blurry, artifacts, seam', steps=20, cfg=7.5), export API JSON to comfyui_workflows/flux_outpaint.json, create 3-5 test images, verify fal.ai API key works",
+        "testStrategy": "Manual verification: Queue prompt produces seamless outpainting without visible seams/artifacts on 3 test images, workflow JSON loads in ComfyUI without errors, fal.ai endpoint returns 200 on test call",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "File Renaming and Directory Restructuring",
+        "description": "Rename all kling_* files/directories to outpaint_* per F12 requirements",
+        "details": "Rename kling_generator_falai.py -> outpaint_generator.py, kling_automation_ui.py -> outpaint_ui.py, kling_gui/ -> outpaint_gui/, kling_config.json -> outpaint_config.json, kling_history.json -> outpaint_history.json, run_kling_ui.bat -> run_outpaint_ui.bat. Create backends/, comfyui_workflows/, tests/ directories. Update all internal imports/references. Create __init__.py in backends/ and outpaint_gui/. Generate requirements.txt with requests, Pillow, pydantic.",
+        "testStrategy": "Application launches without import errors after rename, no 'kling' strings remain in codebase (grep search), all existing config files detected",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Rename Files and Directories",
+            "description": "Rename all specified kling_* files and directories to outpaint_* equivalents using os.rename()",
+            "dependencies": [],
+            "details": "Use os.rename() for: kling_generator_falai.py -> outpaint_generator.py, kling_automation_ui.py -> outpaint_ui.py, kling_gui/ -> outpaint_gui/, kling_config.json -> outpaint_config.json, kling_history.json -> outpaint_history.json, run_kling_ui.bat -> run_outpaint_ui.bat. Handle potential FileExistsError[1][5]",
+            "status": "pending",
+            "testStrategy": "Verify all renamed files exist with new names and old names are gone using os.path.exists()"
+          },
+          {
+            "id": 2,
+            "title": "Create New Directories and __init__.py Files",
+            "description": "Create required directories backends/, comfyui_workflows/, tests/ and add __init__.py files",
+            "dependencies": [
+              1
+            ],
+            "details": "Use os.makedirs() for backends/, comfyui_workflows/, tests/. Create empty __init__.py in backends/ and outpaint_gui/ using open() with 'w' mode. Ensure directories are created with parents if needed[3]",
+            "status": "pending",
+            "testStrategy": "Check os.path.isdir() for new directories and os.path.exists() for __init__.py files"
+          },
+          {
+            "id": 3,
+            "title": "Update Imports, References, and Generate requirements.txt",
+            "description": "Fix all internal imports/references and create requirements.txt with specified packages",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Use grep/sed or manual search-replace to update 'kling' to 'outpaint' in imports and references. Generate requirements.txt: requests\nPillow\npydantic. Test application launch without import errors[6]",
+            "status": "pending",
+            "testStrategy": "Run application to verify no import errors, grep -r 'kling' shows zero results, pip install -r requirements.txt succeeds"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Implement Configuration Schema Validation",
+        "description": "Create OutpaintConfig with full validation per F6 using Pydantic or dataclass",
+        "details": "pip install pydantic. Define OutpaintConfig with fields: zoom_out_percentage(0-90), expand_left/right/top/bottom(0-700), num_images(1-4), output_format('png'|'jpeg'|'webp'), falai_api_key(str|None), comfyui_path(str|None), use_source_folder(bool). Implement validate_output_folder() with mkdir/touch/unlink test, validate_input_image() with PIL size/format checks (SUPPORTED_FORMATS={'.png','.jpg','.jpeg','.webp','.bmp','.tiff'}, MAX_IMAGE_SIZE=4096*4096), check_output_size() warning for >16MP. Return list of all errors.",
+        "testStrategy": "Unit tests: valid/invalid ranges, missing API key when falai selected, unwritable output folder, corrupt image, oversized image, unicode filenames. Integration: Config loads with defaults, shows all errors at once",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Backend Abstraction Layer",
+        "description": "Create unified backend interface with FalAIOutpaintBackend and ComfyUIOutpaintBackend per F1",
+        "details": "In backends/__init__.py: from abc import ABC, abstractmethod; class Backend(ABC): @abstractmethod def outpaint(self, image_path: str, params: dict, progress_callback=None) -> list[str]: pass. Implement FalAIOutpaintBackend: POST to fal-ai/image-apps-v2/outpaint (image_url via upload, poll status, fetch images). Implement ComfyUIOutpaintBackend: /upload/image, inject params into workflow nodes, POST /prompt, poll /history. Factory: def get_backend(name: str, config: OutpaintConfig) -> Backend.",
+        "testStrategy": "Unit tests: Backend instantiation, mock API calls return expected image URLs/paths, progress_callback fires, identical method signatures",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Dynamic ComfyUI Path Detection and Model Availability Check",
+        "description": "Implement F2 path detection and F4 model checks",
+        "details": "def detect_comfyui_path() -> str|None: Check COMFYUI_PATH env, then search ['G:/pinokio/api/comfy.git/app', 'C:/pinokio/api/comfy.git/app', '~/.pinokio/api/comfy.git/app', 'C:/AI/ComfyUI', etc.], verify main.py exists. In ComfyUIOutpaintBackend.check_available(): GET /system_stats (VRAM>=12GB), /object_info (check DualCLIPLoader/UNETLoader with fallbacks: CheckpointLoaderSimple/FluxModelLoader, CLIPLoader/TripleCLIPLoader), return (ready: bool, message: str) with specific instructions.",
+        "testStrategy": "Test path detection finds G:/pinokio install, mock /system_stats returns low VRAM → failure, mock missing FLUX nodes → actionable error message, completes <5s",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Robust Workflow Node Matching",
+        "description": "Implement F3 workflow parameter injection by class_type",
+        "details": "def find_node_by_class(workflow: dict, class_type: str) -> dict|None: for node_id, node in workflow['nodes'].items(): if node['class_type'] in [class_type, aliases]: return workflow['nodes'][node_id]. def inject_workflow_params(workflow: dict, params: dict): Find ImagePadForOutpaint → set expand_*, find CLIPTextEncode (positive only) → set prompt, find KSampler → set steps/cfg/num_images (batch_size), find LoadImage → skip (upload separate). Handle aliases: ImageScale/ImageScaleBy.",
+        "testStrategy": "Test with flux_outpaint.json: parameters correctly injected regardless of node ID order, skips negative prompt nodes, no KeyError on missing nodes",
+        "priority": "high",
+        "dependencies": [
+          1,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Unified Outpaint Generator and Parameters",
+        "description": "Implement F9 OutpaintGenerator and F10 parameters",
+        "details": "class OutpaintGenerator: def __init__(self, config): self.backend = get_backend(config.backend, config). def generate(self, image_path: str, params: dict) -> list[str]: Validate image, check duplicate, call backend.outpaint(), convert format if needed (PIL), save with suffix '-expanded_N.ext'. Params: zoom_out_percentage, expand_l/r/t/b, num_images, prompt, output_format, output_suffix, enable_safety_checker (fal.ai only).",
+        "testStrategy": "Integration test: generate() produces correct output filenames, handles multi-image (1-4), format conversion PNG→JPEG, duplicate detection skips existing files",
+        "priority": "high",
+        "dependencies": [
+          3,
+          4,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "GUI Updates for Outpainting Controls",
+        "description": "Adapt GUI per F11: remove video controls, add outpainting parameters",
+        "details": "In outpaint_gui/config_panel.py: Remove duration/fps/motion. Add ttk.Scale for zoom_out_percentage(0-90), 4x ttk.Spinbox for expand_l/r/t/b(0-700), ttk.Combobox num_images(['1','2','3','4']), output_format(['png','jpeg','webp']), ttk.Entry prompt. Bind to StringVar/IntVar with validation (red border on invalid). Update queue_panel.py for image thumbnails (PIL.thumbnail). Use grid/pack per existing layout.",
+        "testStrategy": "GUI launches, controls update config vars live, validation shows red borders on invalid input, tab order logical, thumbnails display correctly",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Backend Selector, Worker Limits, and Fallback Logic",
+        "description": "Implement F7 selector, F5 workers, F8 fallback in GUI",
+        "details": "In config_panel: ttk.Radiobutton 'Fal.ai (Cloud, fast)' / 'ComfyUI (Local, free)', Test Connection button (F4.check_available()), status label green/red. Worker pool: fal.ai=5, comfyui=2, configurable. F8: Track consecutive failures, after 3 ComfyUI fails show dialog 'Switch to fal.ai for remaining X items? Est cost $Y', continue batch seamlessly.",
+        "testStrategy": "Backend switch updates status <2s, worker count display correct, simulate 3 failures → fallback dialog appears, switch preserves queue",
+        "priority": "high",
+        "dependencies": [
+          5,
+          7,
+          8
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Diagnostics, Progress, Retry, Testing Suite",
+        "description": "Implement F20 diagnostics, F15 progress, F16 retry, F19 tests, F14 workflows",
+        "details": "F20: Auto-run on first launch, check Python/Pillow/requests versions, fal.ai key, ComfyUI path/VRAM/nodes, show formatted dialog. F15: ETA from avg time, fal.ai cost tracking. F16: 3 retries exponential backoff (1/2/4s), distinguish transient/permanent. F14: Create comfyui_workflows/flux_outpaint.json + README.md. F19: pytest tests/test_backends.py etc. with fixtures/valid+invalid images, mocks, 80% coverage.",
+        "testStrategy": "Diagnostics shows correct status/clear fixes, all pytest pass (80% coverage), progress ETA accurate after 3 items, retry handles network blip, stress test 50 images no crashes",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          5,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Workflow Management, Output Format, CLI Interface",
+        "description": "Complete F14 workflow validation, F17 format handling, F18 CLI",
+        "details": "F14: Load custom workflow from config, validate required nodes via F3. F17: PIL convert PNG→JPEG(quality=95)/WebP(90), preserve metadata. F18: argparse CLI with backend select, params, single/batch/folder process, --gui launch. Update outpaint_generator.py as core lib for CLI/GUI.",
+        "testStrategy": "Custom workflow validation catches missing nodes, format conversion no quality loss (SSIM>0.95), CLI processes batch with progress, matches GUI output",
+        "priority": "medium",
+        "dependencies": [
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-12-22T19:01:53.843Z",
+      "updated": "2025-12-22T19:01:53.843Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
