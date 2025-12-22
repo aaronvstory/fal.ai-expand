@@ -1,0 +1,948 @@
+# Product Requirements Document: Image Outpainting Tool
+
+## Project Overview
+
+**Name**: fal.ai Image Outpainting Tool
+**Type**: Desktop Application (Windows-first, Python/Tkinter)
+**Version**: 2.0.0
+
+### Summary
+Transform the existing fal.ai video generator application into a production-ready image outpainting tool with dual backend support. The tool will allow users to expand/outpaint images using either:
+1. **fal.ai Cloud API** - Fast, paid, always available
+2. **ComfyUI Local** - Free, slower, requires local GPU
+
+### Current State
+- Existing codebase: `kling_generator_falai.py`, `kling_automation_ui.py`, `kling_gui/`
+- Uses fal.ai for video generation (kling-video endpoint)
+- GUI supports batch processing, drag-drop, queue management
+
+### Target State
+- Renamed codebase: `outpaint_*.py`, `outpaint_gui/`, `backends/`
+- Dual backend architecture with runtime switching
+- Image outpainting via `fal-ai/image-apps-v2/outpaint` and ComfyUI FLUX Fill
+- Same UX patterns, adapted for still images instead of video
+
+---
+
+## Goals & Success Criteria
+
+### Primary Goals
+1. Enable image outpainting with zoom-out and directional expansion
+2. Provide dual backend flexibility (cloud vs local)
+3. Maintain existing UX quality (batch processing, progress tracking)
+4. Achieve production reliability with proper error handling
+
+### Success Criteria
+- [ ] Single image outpainting works on both backends
+- [ ] Batch processing handles 50+ images without failures
+- [ ] Backend switching mid-batch works correctly
+- [ ] Config validation catches errors before processing
+- [ ] Graceful fallback from ComfyUI to fal.ai after repeated failures
+- [ ] No hardcoded paths - works across different installations
+
+---
+
+## Implementation Phases
+
+### Phase 0: Prerequisites (MUST COMPLETE FIRST)
+**Blocking**: All other phases depend on this.
+
+| Task | Description | Effort |
+|------|-------------|--------|
+| P0.1 | Create and test FLUX outpainting workflow in ComfyUI manually | 2-4 hours |
+| P0.2 | Export workflow as API JSON → `flux_outpaint.json` | 15 min |
+| P0.3 | Verify fal.ai API key and outpaint endpoint access | 15 min |
+| P0.4 | Create sample test images (3-5 varied sizes) | 15 min |
+
+#### P0.1 Detailed Subtasks (Manual in ComfyUI)
+
+**Step 1: Start ComfyUI**
+```bash
+cd G:\pinokio\api\comfy.git\app
+python main.py
+# Open http://127.0.0.1:8188 in browser
+```
+
+**Step 2: Load Required Nodes**
+1. Right-click canvas → Add Node → Search for each:
+   - `LoadImage` - Input image source
+   - `ImagePadForOutpaint` - Sets expansion pixels (left/right/top/bottom)
+   - `DualCLIPLoader` - Load FLUX CLIP models (clip_l + t5xxl)
+   - `UNETLoader` - Load FLUX.1-Fill-dev-fp8.safetensors
+   - `CLIPTextEncode` (x2) - Positive and negative prompts
+   - `KSampler` - Main sampler (set batch_size for num_images)
+   - `VAELoader` + `VAEEncode` + `VAEDecode` - Image encoding
+   - `SaveImage` - Output node
+
+**Step 3: Connect Nodes**
+```
+LoadImage → ImagePadForOutpaint → VAEEncode ─┐
+                                              ├→ KSampler → VAEDecode → SaveImage
+DualCLIPLoader → CLIPTextEncode (positive) ──┤
+               → CLIPTextEncode (negative) ──┘
+UNETLoader ──────────────────────────────────┘
+VAELoader → VAEEncode, VAEDecode
+```
+
+**Step 4: Test Configuration**
+- Input: 512x512 PNG image
+- ImagePadForOutpaint: left=200, right=200, top=200, bottom=200
+- Positive prompt: "natural scene extension, seamless blend"
+- Negative prompt: "blurry, artifacts, seam"
+- KSampler: steps=20, cfg=7.5, batch_size=1
+- Click "Queue Prompt" and verify output
+
+**Step 5: Verify Output Quality**
+- Check for visible seams at boundaries
+- Check for artifacts/distortion
+- If poor quality: adjust steps (25-30), cfg (6-8), or prompt
+- Test with 2-3 different input images
+
+**Step 6: Export Workflow**
+- Menu → Save → Export (API Format)
+- Save as: `flux_outpaint.json`
+- Place in: `comfyui_workflows/flux_outpaint.json`
+
+**Troubleshooting P0.1**:
+- If UNETLoader missing: ComfyUI Manager → Search "FLUX" → Install
+- If VAE errors: Ensure ae.safetensors in models/vae/
+- If OOM: Reduce batch_size to 1, use fp8 models
+
+### Phase 1: Foundation (Core Infrastructure)
+**Goal**: Backend abstraction and config system.
+
+| Feature | Dependencies | Effort |
+|---------|--------------|--------|
+| F12 File Renaming | None | 1 hour |
+| F6 Config Validation | F12 | 2 hours |
+| F13 Config Migration | F6 | 1 hour |
+| F1 Backend Abstraction | F12 | 3 hours |
+| F2 Dynamic Path Detection | F1 | 1 hour |
+
+### Phase 2: Core Implementation
+**Goal**: Working generation on both backends.
+
+| Feature | Dependencies | Effort |
+|---------|--------------|--------|
+| F3 Workflow Node Matching | F1 | 2 hours |
+| F4 Model Availability Check | F2 | 1 hour |
+| F10 Outpaint Parameters | F1 | 1 hour |
+| F9 Unified Generator | F1, F3, F10 | 3 hours |
+| F14 Workflow Management | F3, P0.2 | 1 hour |
+| F16 Retry Logic | F9 | 1 hour |
+
+### Phase 3: GUI Integration
+**Goal**: Full GUI functionality.
+
+| Feature | Dependencies | Effort |
+|---------|--------------|--------|
+| F11 GUI Updates | F9, F12 | 4 hours |
+| F7 Backend Selector | F4, F11 | 2 hours |
+| F5 Worker Limits | F7 | 1 hour |
+| F8 Graceful Fallback | F5, F7 | 1 hour |
+| F15 Progress Reporting | F9 | 2 hours |
+| F17 Output Format | F9 | 1 hour |
+
+### Phase 4: Polish & Testing
+**Goal**: Production readiness.
+
+| Feature | Dependencies | Effort |
+|---------|--------------|--------|
+| F20 Diagnostics (High) | F4 | 2 hours |
+| F18 CLI Interface | F9 | 2 hours |
+| F19 Testing Suite | All above | 4 hours |
+
+**Note**: F20 moved earlier in Phase 4 due to High priority - unblocks user onboarding.
+
+---
+
+## Task Dependencies Graph
+
+```
+P0.1 ─────────────────────────────────┐
+P0.2 ─────────────────────────────────┤
+                                      ▼
+F12 (Rename) ──────────► F6 (Config) ──► F13 (Migration)
+     │
+     ▼
+F1 (Backends) ──────────► F2 (Path Detection)
+     │                         │
+     ├─────────────────────────┤
+     ▼                         ▼
+F3 (Node Match) ◄──────── F4 (Availability)
+     │
+     ▼
+F10 (Params) ─────────► F9 (Generator) ─────────────┐
+                              │                      │
+              ┌───────────────┼───────────────┐      │
+              ▼               ▼               ▼      ▼
+         F16 (Retry)    F15 (Progress)   F17 (Format)
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+         F11 (GUI) ────────► F7 (Selector) ──► F8 (Fallback)
+              │                    │
+              ▼                    ▼
+         F18 (CLI)            F5 (Workers)
+              │
+              ▼
+         F19 (Tests) ◄─────── F14 (Workflow) ◄─── P0.2
+              │
+              ▼
+         F20 (Diagnostics)
+```
+
+**Critical Path**: P0.1 → P0.2 → F12 → F1 → F3 → F9 → F11 → F7 → F8
+
+---
+
+## Core Features
+
+### F1: Backend Abstraction Layer
+**Priority**: Critical
+**Description**: Create a unified interface for both backends with a factory pattern.
+
+**Requirements**:
+- F1.1: Create `backends/` package with `__init__.py`
+- F1.2: Implement `FalAIOutpaintBackend` class with `outpaint()` method
+- F1.3: Implement `ComfyUIOutpaintBackend` class with `outpaint()` method
+- F1.4: Create factory function `get_backend(name: str) -> Backend`
+- F1.5: Both backends must share identical method signatures
+
+**Acceptance Criteria**:
+- Backend can be swapped at runtime without code changes
+- Each backend handles its own upload/download logic
+- Progress callbacks work identically on both backends
+
+---
+
+### F2: Dynamic ComfyUI Path Detection
+**Priority**: Critical
+**Description**: Auto-detect ComfyUI installation without hardcoded paths.
+
+**Requirements**:
+- F2.1: Check `COMFYUI_PATH` environment variable first
+- F2.2: Search Pinokio installations (G:/pinokio, C:/pinokio, ~/pinokio)
+- F2.3: Search standard installations (C:/AI/ComfyUI, D:/AI/ComfyUI, ~/ComfyUI)
+- F2.4: Verify detection by checking for `main.py` or `comfy/__init__.py`
+- F2.5: Return None gracefully if not found
+
+**Acceptance Criteria**:
+- Works on Windows, macOS, and Linux
+- User's Pinokio installation at `G:/pinokio/api/comfy.git/app` detected
+- Override via environment variable works
+
+---
+
+### F3: Robust Workflow Node Matching
+**Priority**: Critical
+**Description**: Match ComfyUI workflow nodes by `class_type`, not fragile node IDs.
+
+**Requirements**:
+- F3.1: Implement `find_node_by_class(workflow, class_type)` helper
+- F3.2: Implement `find_all_nodes_by_class(workflow, class_types)` helper
+- F3.3: Parameter injection targets node types: LoadImage, ImagePadForOutpaint, CLIPTextEncode, KSampler, etc.
+- F3.4: Skip negative prompt nodes when setting prompt text
+- F3.5: Handle multiple node type aliases (e.g., ImageScale, ImageScaleBy)
+
+**Acceptance Criteria**:
+- Works with user-exported workflows regardless of node ID numbering
+- Parameters correctly injected into appropriate nodes
+- No KeyError exceptions from missing node IDs
+
+---
+
+### F4: Model Availability Check
+**Priority**: High
+**Description**: Verify ComfyUI has required models before starting generation.
+
+**Requirements**:
+- F4.1: Check ComfyUI server responding via `/system_stats`
+- F4.2: Verify VRAM >= 12GB for FLUX models
+- F4.3: Check `/object_info` for required node types (LoadImage, VAEEncode, VAEDecode, KSampler)
+- F4.4: Check for FLUX-specific nodes with fallback alternatives
+- F4.5: Return tuple `(ready: bool, message: str)` with specific failure reason
+
+**F4.4 FLUX Node Detection (with fallbacks)**:
+```
+Primary nodes to check:
+  - DualCLIPLoader (required for FLUX)
+  - UNETLoader (standard FLUX loader)
+
+Fallback node alternatives:
+  - If UNETLoader missing, check for:
+    - "CheckpointLoaderSimple" (older FLUX workflows)
+    - "FluxModelLoader" (some custom node packs)
+    - "DiffusionModelLoader" (alternative naming)
+
+  - If DualCLIPLoader missing, check for:
+    - "CLIPLoader" (simpler single-CLIP workflows)
+    - "TripleCLIPLoader" (SD3/FLUX hybrid)
+
+If none found, provide actionable guidance:
+  - "FLUX nodes not found. Install via:"
+  - "1. ComfyUI Manager → Search 'FLUX'"
+  - "2. Install 'FLUX.1 Fill Dev' model pack"
+  - "3. Restart ComfyUI"
+```
+
+**Model file verification (optional enhancement)**:
+```
+Check models directory for:
+  - diffusion_models/flux1-fill-dev*.safetensors OR
+  - checkpoints/flux*.safetensors OR
+  - unet/flux*.safetensors
+
+Check CLIP models:
+  - clip/clip_l.safetensors
+  - clip/t5xxl*.safetensors (fp8 or fp16)
+
+Check VAE:
+  - vae/ae.safetensors OR
+  - vae/flux*.safetensors
+```
+
+**Acceptance Criteria**:
+- Clear error messages for each failure mode
+- User knows exactly what's missing (VRAM, models, nodes)
+- Check completes in under 5 seconds
+- Fallback logic finds FLUX nodes across different ComfyUI versions
+- Provides installation instructions when nodes missing
+
+---
+
+### F5: Backend-Aware Worker Limits
+**Priority**: High
+**Description**: Adjust concurrency based on backend capabilities.
+
+**Requirements**:
+- F5.1: fal.ai backend: 5 concurrent workers (cloud handles scaling)
+- F5.2: ComfyUI backend: 2 concurrent workers (local GPU constraint)
+- F5.3: Worker count configurable via config for power users
+- F5.4: Worker pool gracefully resizes when backend switches
+- F5.5: In-flight tasks complete before pool shutdown
+
+**Acceptance Criteria**:
+- No OOM errors on RTX 4090 with 16GB VRAM
+- Backend switch doesn't lose queued items
+- Worker count displayed in UI
+
+---
+
+### F6: Configuration Schema Validation
+**Priority**: High
+**Description**: Validate configuration on load to catch errors early.
+
+**Requirements**:
+- F6.1: Use dataclass or Pydantic for `OutpaintConfig`
+- F6.2: Validate `zoom_out_percentage` range: 0-90
+- F6.3: Validate `expand_*` range: 0-700 pixels
+- F6.4: Validate `num_images` range: 1-4
+- F6.5: Validate `output_format` enum: png, jpeg, webp
+- F6.6: Require `falai_api_key` when backend is "falai"
+- F6.7: Return list of all validation errors, not just first
+- F6.8: Validate output folder is writable (I/O check)
+- F6.9: Validate input image files exist before processing
+- F6.10: Warn if total expansion would create excessively large output
+
+**F6.8 Output Folder Validation**:
+```python
+def validate_output_folder(path: str) -> tuple[bool, str]:
+    if not path:
+        return True, "Using source folder"  # OK if use_source_folder=True
+
+    folder = Path(path)
+    if not folder.exists():
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+        except PermissionError:
+            return False, f"Cannot create folder: {path}"
+
+    # Test write permission
+    test_file = folder / ".write_test"
+    try:
+        test_file.touch()
+        test_file.unlink()
+        return True, "Output folder writable"
+    except PermissionError:
+        return False, f"No write permission: {path}"
+```
+
+**F6.9 Input Image Validation** (at queue time):
+```python
+SUPPORTED_FORMATS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff'}
+MAX_IMAGE_SIZE = 4096 * 4096  # 16 megapixels
+
+def validate_input_image(path: str) -> tuple[bool, str]:
+    p = Path(path)
+    if not p.exists():
+        return False, f"File not found: {path}"
+    if p.suffix.lower() not in SUPPORTED_FORMATS:
+        return False, f"Unsupported format: {p.suffix}"
+
+    # Check image can be opened and isn't corrupt
+    try:
+        from PIL import Image
+        with Image.open(path) as img:
+            w, h = img.size
+            if w * h > MAX_IMAGE_SIZE:
+                return False, f"Image too large: {w}x{h} (max 4096x4096)"
+    except Exception as e:
+        return False, f"Cannot read image: {e}"
+
+    return True, f"Valid image: {w}x{h}"
+```
+
+**F6.10 Output Size Warning**:
+```python
+def check_output_size(width, height, zoom_pct, expand_l, expand_r, expand_t, expand_b):
+    """Warn if output would be excessively large"""
+    scale = 1.0 / (1.0 - zoom_pct / 100.0)  # e.g., 30% zoom → 1.43x
+    new_w = int(width * scale) + expand_l + expand_r
+    new_h = int(height * scale) + expand_t + expand_b
+
+    total_pixels = new_w * new_h
+    if total_pixels > 16_000_000:  # 16 megapixels
+        return False, f"Output {new_w}x{new_h} ({total_pixels/1e6:.1f}MP) may cause OOM"
+    if total_pixels > 8_000_000:
+        return "warning", f"Large output: {new_w}x{new_h} - may be slow"
+    return True, f"Output size OK: {new_w}x{new_h}"
+```
+
+**Acceptance Criteria**:
+- Invalid config shows clear error dialog before processing starts
+- All validation errors listed at once
+- Config loads successfully with defaults for optional fields
+- Output folder creation attempted before batch starts
+- Corrupt/missing images rejected with clear error at queue time
+- Warning shown for extremely large output dimensions
+
+---
+
+### F7: UI Backend Selector
+**Priority**: High
+**Description**: Add backend selection to GUI with immediate health check.
+
+**Requirements**:
+- F7.1: Radio buttons: "Fal.ai (Cloud)" and "ComfyUI (Local)"
+- F7.2: Display cost/speed info for each option
+- F7.3: Test connection button for ComfyUI
+- F7.4: Status indicator: green (connected) / red (not running)
+- F7.5: Warning dialog when switching to ComfyUI with low VRAM
+- F7.6: Enable/disable backend-specific settings based on selection
+
+**Acceptance Criteria**:
+- Backend switch updates status within 2 seconds
+- Clear feedback when ComfyUI not running
+- Settings panels show/hide appropriately
+
+---
+
+### F8: Graceful Fallback During Batch
+**Priority**: High
+**Description**: Offer to switch to fal.ai after repeated ComfyUI failures.
+
+**Requirements**:
+- F8.1: Track consecutive failure count per backend
+- F8.2: After 3 consecutive ComfyUI failures, show fallback dialog
+- F8.3: Dialog shows remaining items and estimated fal.ai cost
+- F8.4: If user accepts, switch backend and continue batch
+- F8.5: Reset failure counter on successful generation
+
+**Acceptance Criteria**:
+- User never loses batch progress due to backend issues
+- Cost estimate accurate within 20%
+- Fallback switch happens seamlessly
+
+---
+
+### F9: Unified Generator Interface
+**Priority**: Critical
+**Description**: Create `OutpaintGenerator` class that routes to selected backend.
+
+**Requirements**:
+- F9.1: Constructor accepts `backend`, `api_key`, `comfyui_url` parameters
+- F9.2: `generate()` method with unified parameters
+- F9.3: `check_backend_available()` method
+- F9.4: `set_progress_callback()` for progress updates
+- F9.5: Duplicate detection before processing
+- F9.6: Support `use_source_folder` option for output location
+
+**Acceptance Criteria**:
+- Same `generate()` call works for both backends
+- Callers don't need to know which backend is active
+- Progress callbacks fire at same intervals for both backends
+
+---
+
+### F10: Image Outpainting Parameters
+**Priority**: Critical
+**Description**: Support all outpainting parameters from fal.ai API.
+
+**Requirements**:
+- F10.1: `zoom_out_percentage`: 0-90% (default 30%)
+- F10.2: Directional expansion: `expand_left`, `expand_right`, `expand_top`, `expand_bottom` (0-700px each)
+- F10.3: `num_images`: 1-4 outputs per input
+- F10.4: `prompt`: Optional text guidance
+- F10.5: `output_format`: png, jpeg, webp
+- F10.6: `output_suffix`: Configurable (default "-expanded")
+- F10.7: `enable_safety_checker`: For fal.ai only
+
+**Acceptance Criteria**:
+- All parameters work on fal.ai backend
+- ComfyUI backend maps parameters to workflow nodes
+- Multi-image output uses numbered suffixes (_1, _2, etc.)
+
+---
+
+### F11: GUI Updates for Image Outpainting
+**Priority**: High
+**Description**: Adapt video controls to image outpainting controls.
+
+**Source Files to Modify**:
+- `kling_gui/config_panel.py` → `outpaint_gui/config_panel.py` (main control panel)
+- `kling_gui/main_window.py` → `outpaint_gui/main_window.py` (layout)
+- `kling_gui/queue_panel.py` → `outpaint_gui/queue_panel.py` (item display)
+
+**Requirements**:
+- F11.1: Remove video-specific controls (duration, fps, motion) from config_panel.py
+- F11.2: Add zoom-out percentage slider (0-90%) with ttk.Scale
+- F11.3: Add directional expansion inputs (4x ttk.Spinbox for L/R/T/B, 0-700 range)
+- F11.4: Add number of images selector (ttk.Combobox, values 1-4)
+- F11.5: Add output format dropdown (ttk.Combobox: PNG/JPEG/WebP)
+- F11.6: Add optional prompt text field (ttk.Entry with placeholder)
+- F11.7: Update queue item display to show image thumbnails, not video
+
+**Acceptance Criteria**:
+- All controls properly bound to config via StringVar/IntVar
+- Real-time validation feedback (red border on invalid values)
+- Layout matches existing design language (same spacing, fonts)
+- Tab order is logical (top to bottom, left to right)
+
+---
+
+### F12: File Renaming
+**Priority**: Medium
+**Description**: Rename all files from `kling_*` to `outpaint_*`.
+
+**Requirements**:
+- F12.1: Rename `kling_generator_falai.py` -> `outpaint_generator.py`
+- F12.2: Rename `kling_automation_ui.py` -> `outpaint_ui.py`
+- F12.3: Rename `kling_gui/` -> `outpaint_gui/`
+- F12.4: Rename `kling_config.json` -> `outpaint_config.json`
+- F12.5: Rename `kling_history.json` -> `outpaint_history.json`
+- F12.6: Rename `run_kling_ui.bat` -> `run_outpaint_ui.bat`
+- F12.7: Update all internal imports and references
+
+**Acceptance Criteria**:
+- No references to "kling" in renamed codebase
+- Application launches successfully after rename
+- Config migration preserves user settings
+
+---
+
+### F13: Config Migration
+**Priority**: Medium
+**Description**: Migrate existing kling_config.json to new format.
+
+**Requirements**:
+- F13.1: Detect existing `kling_config.json` on first run
+- F13.2: Map relevant settings to new schema
+- F13.3: Add new backend-specific defaults
+- F13.4: Preserve user's API key
+- F13.5: Create backup of old config
+
+**Acceptance Criteria**:
+- Existing users don't lose settings
+- Migration runs automatically
+- Backup file created as `kling_config.json.bak`
+
+---
+
+### F14: ComfyUI Workflow Management
+**Priority**: High
+**Description**: Handle ComfyUI workflow templates.
+
+**Requirements**:
+- F14.1: Create `comfyui_workflows/` directory
+- F14.2: Include default `flux_outpaint.json` workflow template
+- F14.3: Include `README.md` with setup instructions
+- F14.4: Support custom workflow selection in config
+- F14.5: Validate workflow has required node types on load
+
+**Acceptance Criteria**:
+- Default workflow works out-of-box with standard FLUX setup
+- Clear instructions for creating custom workflows
+- Workflow validation catches missing nodes early
+
+---
+
+### F15: Progress Reporting
+**Priority**: Medium
+**Description**: Enhanced progress reporting with ETA and cost.
+
+**Requirements**:
+- F15.1: Report current item / total items
+- F15.2: Calculate and display ETA based on average time
+- F15.3: Display running cost estimate for fal.ai
+- F15.4: Show per-item status (queued, processing, completed, failed)
+- F15.5: Log all progress to file for debugging
+
+**Acceptance Criteria**:
+- ETA accuracy improves as batch progresses
+- Cost estimate matches actual charges within 10%
+- Progress visible in both GUI and CLI modes
+
+---
+
+### F16: Retry Logic
+**Priority**: Medium
+**Description**: Automatic retry with exponential backoff.
+
+**Requirements**:
+- F16.1: Retry failed requests up to 3 times
+- F16.2: Exponential backoff: 1s, 2s, 4s delays
+- F16.3: Different retry strategies for transient vs permanent failures
+- F16.4: Log all retry attempts
+- F16.5: Report final failure after exhausting retries
+
+**Acceptance Criteria**:
+- Transient network issues don't fail entire batch
+- Permanent failures (invalid API key) don't waste retries
+- User sees retry progress in UI
+
+---
+
+### F17: Output Format Handling
+**Priority**: Medium
+**Description**: Handle format conversion when needed.
+
+**Requirements**:
+- F17.1: Save outputs in user-requested format
+- F17.2: Convert ComfyUI outputs if format mismatch
+- F17.3: Preserve image quality during conversion
+- F17.4: Support PNG (lossless), JPEG (quality 95), WebP (quality 90)
+
+**Acceptance Criteria**:
+- Requesting JPEG when workflow outputs PNG works correctly
+- No visible quality loss in conversions
+- File extensions match actual format
+
+---
+
+### F18: CLI Interface
+**Priority**: Low
+**Description**: Command-line interface for headless operation.
+
+**Requirements**:
+- F18.1: Main menu with numbered options
+- F18.2: Backend selection option
+- F18.3: Parameter configuration options
+- F18.4: Single image processing
+- F18.5: Batch folder processing
+- F18.6: Launch GUI option
+
+**Acceptance Criteria**:
+- All GUI features accessible via CLI
+- Scriptable for automation
+- Clear output with progress indicators
+
+---
+
+### F19: Testing Suite
+**Priority**: Medium
+**Description**: Comprehensive tests for both backends.
+
+**Test Files to Create**:
+- `tests/test_backends.py` - Backend unit tests
+- `tests/test_config.py` - Config validation tests
+- `tests/test_generator.py` - Generator integration tests
+- `tests/test_workflow.py` - ComfyUI workflow parsing tests
+- `tests/fixtures/` - Sample images for testing
+
+**Requirements**:
+- F19.1: Unit tests for backend classes
+  - Test FalAIBackend initialization with/without API key
+  - Test ComfyUIBackend path detection
+  - Test ComfyUIBackend availability check (mock server)
+- F19.2: Unit tests for config validation
+  - Test all parameter ranges (valid and invalid)
+  - Test missing required fields
+  - Test config migration from old format
+- F19.3: Integration tests for full generation flow
+  - Test single image with fal.ai (requires API key, skip in CI)
+  - Test single image with ComfyUI (requires server, skip in CI)
+  - Test batch of 5 images
+  - Test backend switch mid-batch
+- F19.4: Test fixtures with sample images
+  - 512x512 PNG (standard)
+  - 1024x1024 JPEG (large)
+  - 256x512 PNG (non-square)
+  - 2048x2048 WebP (extra large)
+- F19.5: Mock backends for CI testing
+  - MockFalAIBackend returns fake URLs
+  - MockComfyUIBackend returns fake file paths
+  - Simulate failure scenarios (timeout, OOM, invalid response)
+- F19.6: System integration tests
+  - Batch 10 images on fal.ai (requires API key, skip in CI)
+  - Batch 10 images on ComfyUI (requires server, skip in CI)
+  - Verify output filenames match pattern: `{name}-expanded.png`
+  - Verify no data loss/corruption (compare file sizes)
+- F19.7: Stress tests
+  - Queue 50 images (max capacity)
+  - Verify queue doesn't drop items
+  - Verify backend switch mid-batch preserves queue state
+  - Measure memory usage stays bounded
+- F19.8: Error scenario tests
+  - Invalid API key → Clear error message, no retries
+  - ComfyUI timeout (mock 600s delay) → Offer fallback to fal.ai
+  - Corrupt image (truncated file) → Skip with warning, continue batch
+  - VRAM exceeded (mock OOM response) → Suggest smaller batch
+  - Network disconnect mid-batch → Pause, retry on reconnect
+  - Duplicate output filename → Auto-increment suffix (_1, _2)
+
+**Edge Case Test Inputs**:
+```
+tests/fixtures/
+├── valid/
+│   ├── 512x512.png       # Standard square
+│   ├── 1024x1024.jpg     # Large square
+│   ├── 256x512.png       # Tall aspect ratio
+│   ├── 512x256.webp      # Wide aspect ratio
+│   └── 4096x4096.png     # Max supported size
+├── invalid/
+│   ├── corrupted.png     # Truncated file
+│   ├── fake.png          # Text file with .png extension
+│   ├── 8192x8192.png     # Too large
+│   ├── empty.png         # 0 bytes
+│   └── readonly.png      # No write permission in folder
+└── unicode/
+    ├── émoji_🎨.png      # Unicode filename
+    └── 日本語.png        # Non-ASCII path
+```
+
+**Acceptance Criteria**:
+- All tests pass before release
+- Both backends tested independently
+- CI can run tests without API keys (mocked)
+- Test coverage > 80% for backend and config modules
+- Integration tests tagged for skip in CI environment
+- Edge cases handled gracefully with clear error messages
+- Unicode filenames supported on Windows
+
+---
+
+### F20: Diagnostics Tool
+**Priority**: High (moved from Low - critical for user onboarding)
+**Description**: System diagnostics for troubleshooting. Auto-runs on first launch.
+
+**Rationale for High Priority**:
+- 80% of support issues are "why isn't ComfyUI working?"
+- Diagnostics unblocks F4 (availability check) work
+- Should run automatically on first launch
+- Reduces user frustration and support burden
+
+**Requirements**:
+- F20.1: Check ComfyUI installation status (path detection)
+- F20.2: Check FLUX models loaded (via /object_info)
+- F20.3: Check available VRAM (via /system_stats)
+- F20.4: Validate fal.ai API key (test API call)
+- F20.5: Display diagnostic summary in GUI
+- F20.6: Auto-run on first launch (store "diagnostics_run" flag in config)
+- F20.7: Manual trigger via Help → Run Diagnostics
+
+**Diagnostic Output Format**:
+```
+╔══════════════════════════════════════════════════════════════╗
+║                    SYSTEM DIAGNOSTICS                        ║
+╠══════════════════════════════════════════════════════════════╣
+║  Python Version     │ ✓ 3.11.5                               ║
+║  Pillow             │ ✓ Installed (10.1.0)                   ║
+║  Requests           │ ✓ Installed (2.31.0)                   ║
+╠══════════════════════════════════════════════════════════════╣
+║  fal.ai API Key     │ ✓ Valid (balance: $12.45)              ║
+║  Outpaint Endpoint  │ ✓ Available                            ║
+╠══════════════════════════════════════════════════════════════╣
+║  ComfyUI Path       │ ✓ G:\pinokio\api\comfy.git\app         ║
+║  ComfyUI Server     │ ✓ Running (http://127.0.0.1:8188)      ║
+║  VRAM Available     │ ✓ 15.8 GB (RTX 4090)                   ║
+║  FLUX Nodes         │ ✓ UNETLoader, DualCLIPLoader found     ║
+║  FLUX Models        │ ⚠ flux1-fill-dev.safetensors missing   ║
+╠══════════════════════════════════════════════════════════════╣
+║  Overall Status     │ ⚠ 1 warning - see above                ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**On First Launch Behavior**:
+1. Show "Running first-time diagnostics..." splash
+2. Run all checks (max 10 seconds)
+3. If all pass: Show brief "All systems ready" toast
+4. If warnings: Show summary dialog with "View Details" button
+5. If errors: Show blocking dialog with fix instructions
+6. Set `diagnostics_run: true` in config to skip next time
+
+**Acceptance Criteria**:
+- Accessible via Help menu
+- All checks complete in under 10 seconds
+- Clear pass/fail indicators with colored status
+- Auto-runs on first launch only
+- Provides actionable fix instructions for each failure
+- Can be re-run manually at any time
+
+---
+
+## Technical Requirements
+
+### TR1: Python Version
+- Minimum: Python 3.10
+- Target: Python 3.11+
+
+### TR2: Dependencies
+- requests: HTTP client for API calls
+- Pillow: Image processing and format conversion
+- tkinter: GUI framework (built-in)
+- dataclasses or pydantic: Config validation
+
+### TR3: File Structure
+```
+outpaint/
+├── backends/
+│   ├── __init__.py
+│   ├── falai_backend.py
+│   └── comfyui_backend.py
+├── outpaint_gui/
+│   ├── __init__.py
+│   ├── main_window.py
+│   ├── config_panel.py
+│   ├── queue_panel.py
+│   └── progress_panel.py
+├── comfyui_workflows/
+│   ├── flux_outpaint.json
+│   └── README.md
+├── tests/
+│   ├── test_backends.py
+│   ├── test_config.py
+│   └── fixtures/
+├── outpaint_generator.py
+├── outpaint_ui.py
+├── outpaint_config.json
+├── run_outpaint_ui.bat
+└── requirements.txt
+```
+
+### TR4: Error Handling
+- All API calls wrapped in try/except
+- Specific exception types for different failures
+- User-friendly error messages in GUI
+- Full stack traces in log file
+
+### TR5: Logging
+- Log file: `outpaint_gui.log`
+- Log levels: DEBUG, INFO, WARNING, ERROR
+- Include timestamps and source locations
+- Rotate logs when size exceeds 10MB
+
+---
+
+## Constraints & Dependencies
+
+### External Dependencies
+- fal.ai API account with credits
+- ComfyUI installation (optional, for local backend)
+- FLUX Fill Dev model (~23GB) for ComfyUI
+- GPU with 12GB+ VRAM for ComfyUI
+
+### Constraints
+- Windows-first development (Linux/macOS secondary)
+- Must work offline with ComfyUI backend
+- Backward compatible with existing kling_config.json
+
+### Assumptions
+- User has valid fal.ai API key
+- For ComfyUI: User has already installed and tested FLUX workflow manually
+- Network available for fal.ai backend
+
+---
+
+## Out of Scope
+
+- Video generation (removed from this version)
+- macOS/Linux GUI testing (community contribution)
+- ComfyUI workflow creation wizard
+- Real-time preview during generation
+- Cloud storage integration
+
+---
+
+## Appendix: API Reference
+
+### fal.ai Outpaint Endpoint
+```
+Endpoint: fal-ai/image-apps-v2/outpaint
+Method: Queue-based (submit, poll, fetch)
+
+Input:
+- image_url: string (hosted image URL)
+- zoom_out_percentage: 0-90
+- expand_left/right/top/bottom: 0-700
+- num_images: 1-4
+- prompt: string (optional)
+- enable_safety_checker: boolean
+- output_format: png|jpeg|webp
+
+Output:
+- images: array of {url, content_type}
+- seed: number
+- timings: object
+```
+
+### ComfyUI API Reference
+```
+Upload: POST /upload/image
+Queue: POST /prompt
+History: GET /history/{prompt_id}
+System: GET /system_stats
+Objects: GET /object_info
+```
+
+---
+
+## Quick Start for Task Master
+
+### To Initialize Tasks
+Run in new context window:
+```
+task-master parse-prd --input=.taskmaster/docs/prd.txt
+```
+
+### To View Tasks
+```
+task-master list
+```
+
+### To Start Implementation
+```
+task-master next
+```
+
+### Recommended First Tasks (in order)
+1. **P0.1-P0.4**: Complete prerequisites (manual ComfyUI workflow creation)
+2. **F12**: File renaming (unblocks everything else)
+3. **F6**: Config validation
+4. **F1**: Backend abstraction layer
+
+### Notes for New Session
+- Prerequisites P0.1-P0.4 are manual tasks done outside Claude Code
+- After P0.2 is complete, place `flux_outpaint.json` in `comfyui_workflows/`
+- fal.ai API key is already configured in existing `kling_config.json`
+- Test with small batches (3-5 images) before large batches
+
+---
+
+## Revision History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2024-12-22 | Claude | Initial PRD from OUTPAINT_CONVERSION_PLAN.md |
+| 1.1 | 2024-12-22 | Claude | Added phases, dependencies, task graph, file mappings |
+| 1.2 | 2024-12-22 | Claude | Battle-hardened: P0.1 detailed subtasks, F4 FLUX fallbacks, F6 I/O validation, F19 edge-case tests, F20 moved to High priority |

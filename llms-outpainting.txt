@@ -1,0 +1,210 @@
+# Image Outpaint
+
+> Directional outpainting. Choose edges to expand. left, right, top, or center (uniform all sides). Only expanded areas are generated; an optional zoom-out pulls the frame back by the chosen amount.
+
+
+## Overview
+
+- **Endpoint**: `https://fal.run/fal-ai/image-apps-v2/outpaint`
+- **Model ID**: `fal-ai/image-apps-v2/outpaint`
+- **Category**: image-to-image
+- **Kind**: inference
+**Tags**: outpainting
+
+
+
+## API Information
+
+This model can be used via our HTTP API or more conveniently via our client libraries.
+See the input and output schema below, as well as the usage examples.
+
+
+### Input Schema
+
+The API accepts the following input parameters:
+
+
+- **`image_url`** (`string`, _required_):
+  Image URL to outpaint
+  - Examples: "https://v3.fal.media/files/koala/oei_-iPIYFnhdB8SxojND_qwen-edit-res.png"
+
+- **`expand_left`** (`integer`, _optional_):
+  Number of pixels to add as black margin on the left side (0-700).
+  - Default: `0`
+  - Range: `0` to `700`
+
+- **`expand_right`** (`integer`, _optional_):
+  Number of pixels to add as black margin on the right side (0-700).
+  - Default: `0`
+  - Range: `0` to `700`
+
+- **`expand_top`** (`integer`, _optional_):
+  Number of pixels to add as black margin on the top side (0-700).
+  - Default: `0`
+  - Range: `0` to `700`
+
+- **`expand_bottom`** (`integer`, _optional_):
+  Number of pixels to add as black margin on the bottom side (0-700). Default value: `400`
+  - Default: `400`
+  - Range: `0` to `700`
+
+- **`zoom_out_percentage`** (`float`, _optional_):
+  Percentage to zoom out the image. If set, the image will be scaled down by this percentage and black margins will be added to maintain original size. Example: 50 means the image will be 50% of original size with black margins filling the rest. Default value: `20`
+  - Default: `20`
+  - Range: `0` to `90`
+
+- **`prompt`** (`string`, _optional_):
+  Optional prompt to guide the outpainting. If provided, it will be appended to the base outpaint instruction. Example: 'with a beautiful sunset in the background' Default value: `""`
+  - Default: `""`
+
+- **`num_images`** (`integer`, _optional_):
+  Number of images to generate. Default value: `1`
+  - Default: `1`
+  - Range: `1` to `4`
+
+- **`enable_safety_checker`** (`boolean`, _optional_):
+  If set to true, the safety checker will be enabled. Default value: `true`
+  - Default: `true`
+
+- **`sync_mode`** (`boolean`, _optional_):
+  If True, the function will wait for the image to be generated and uploaded before returning the response. If False, the function will return immediately and the image will be generated asynchronously.
+  - Default: `false`
+
+- **`output_format`** (`OutputFormatEnum`, _optional_):
+  The format of the output image. Default value: `"png"`
+  - Default: `"png"`
+  - Options: `"png"`, `"jpeg"`, `"jpg"`, `"webp"`
+
+
+
+**Required Parameters Example**:
+
+```json
+{
+  "image_url": "https://v3.fal.media/files/koala/oei_-iPIYFnhdB8SxojND_qwen-edit-res.png"
+}
+```
+
+**Full Example**:
+
+```json
+{
+  "image_url": "https://v3.fal.media/files/koala/oei_-iPIYFnhdB8SxojND_qwen-edit-res.png",
+  "expand_bottom": 400,
+  "zoom_out_percentage": 20,
+  "num_images": 1,
+  "enable_safety_checker": true,
+  "output_format": "png"
+}
+```
+
+
+### Output Schema
+
+The API returns the following output format:
+
+- **`images`** (`list<Image>`, _required_):
+  Outpainted image with extended scene
+  - Array of Image
+  - Examples: [{"url":"https://v3b.fal.media/files/b/zebra/S4DmrY6pF9cI2GvSaONXZ.png"}]
+
+
+
+**Example Response**:
+
+```json
+{
+  "images": [
+    {
+      "url": "https://v3b.fal.media/files/b/zebra/S4DmrY6pF9cI2GvSaONXZ.png"
+    }
+  ]
+}
+```
+
+
+## Usage Examples
+
+### cURL
+
+```bash
+curl --request POST \
+  --url https://fal.run/fal-ai/image-apps-v2/outpaint \
+  --header "Authorization: Key $FAL_KEY" \
+  --header "Content-Type: application/json" \
+  --data '{
+     "image_url": "https://v3.fal.media/files/koala/oei_-iPIYFnhdB8SxojND_qwen-edit-res.png"
+   }'
+```
+
+### Python
+
+Ensure you have the Python client installed:
+
+```bash
+pip install fal-client
+```
+
+Then use the API client to make requests:
+
+```python
+import fal_client
+
+def on_queue_update(update):
+    if isinstance(update, fal_client.InProgress):
+        for log in update.logs:
+           print(log["message"])
+
+result = fal_client.subscribe(
+    "fal-ai/image-apps-v2/outpaint",
+    arguments={
+        "image_url": "https://v3.fal.media/files/koala/oei_-iPIYFnhdB8SxojND_qwen-edit-res.png"
+    },
+    with_logs=True,
+    on_queue_update=on_queue_update,
+)
+print(result)
+```
+
+### JavaScript
+
+Ensure you have the JavaScript client installed:
+
+```bash
+npm install --save @fal-ai/client
+```
+
+Then use the API client to make requests:
+
+```javascript
+import { fal } from "@fal-ai/client";
+
+const result = await fal.subscribe("fal-ai/image-apps-v2/outpaint", {
+  input: {
+    image_url: "https://v3.fal.media/files/koala/oei_-iPIYFnhdB8SxojND_qwen-edit-res.png"
+  },
+  logs: true,
+  onQueueUpdate: (update) => {
+    if (update.status === "IN_PROGRESS") {
+      update.logs.map((log) => log.message).forEach(console.log);
+    }
+  },
+});
+console.log(result.data);
+console.log(result.requestId);
+```
+
+
+## Additional Resources
+
+### Documentation
+
+- [Model Playground](https://fal.ai/models/fal-ai/image-apps-v2/outpaint)
+- [API Documentation](https://fal.ai/models/fal-ai/image-apps-v2/outpaint/api)
+- [OpenAPI Schema](https://fal.ai/api/openapi/queue/openapi.json?endpoint_id=fal-ai/image-apps-v2/outpaint)
+
+### fal.ai Platform
+
+- [Platform Documentation](https://docs.fal.ai)
+- [Python Client](https://docs.fal.ai/clients/python)
+- [JavaScript Client](https://docs.fal.ai/clients/javascript)

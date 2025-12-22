@@ -1,0 +1,14 @@
+# Kling UI - Required Dependencies
+# ================================
+
+# Core Requirements (REQUIRED)
+requests
+Pillow
+rich
+
+# GUI Drag-Drop Support (REQUIRED for GUI mode)
+tkinterdnd2
+
+# Balance Tracker (OPTIONAL - for real-time balance monitoring)
+selenium
+webdriver-manager
