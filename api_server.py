@@ -197,9 +197,8 @@ async def outpaint(
         img.save(temp_input, format="PNG")
         logger.info(f"Saved input image: {temp_input}")
 
-        # Override config for this request
-        original_config = generator.config
-        generator.config = original_config.model_copy(update={
+        # Create request-scoped config (thread-safe, no global mutation)
+        request_config = generator.config.model_copy(update={
             "zoom_out_percentage": zoom_out_percentage,
             "expand_left": expand_left,
             "expand_right": expand_right,
@@ -212,12 +211,14 @@ async def outpaint(
             "use_source_folder": False,
         })
 
-        # Generate outpaint
-        logger.info(f"Processing with backend: {generator.config.backend}")
-        result: OutpaintResult = generator.generate(str(temp_input))
+        # Create request-scoped generator to avoid race conditions
+        request_generator = OutpaintGenerator(request_config)
+        request_generator.set_progress_callback(lambda msg, lvl="info": logger.info(f"Generator: {msg}"))
 
-        # Restore original config
-        generator.config = original_config
+        # Generate outpaint
+        logger.info(f"Processing with backend: {request_config.backend}")
+        result: OutpaintResult = request_generator.generate(str(temp_input))
+        backend_used = request_config.backend
 
         if not result.output_paths:
             raise HTTPException(status_code=500, detail="No outputs generated")
@@ -236,8 +237,8 @@ async def outpaint(
             # Return JSON with file info
             return JSONResponse({
                 "success": True,
-                "backend_used": generator.config.backend,
-                "fallback_triggered": generator._fallback_attempted,
+                "backend_used": backend_used,
+                "fallback_triggered": request_generator._fallback_attempted,
                 "output_path": str(output_path),
                 "num_outputs": len(result.output_paths),
                 "message": "Outpaint completed successfully",
