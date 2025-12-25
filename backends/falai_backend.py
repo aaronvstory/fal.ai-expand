@@ -4,6 +4,8 @@ import base64
 import io
 import os
 import time
+import threading
+from concurrent.futures import CancelledError
 from pathlib import Path
 from typing import Optional
 
@@ -28,22 +30,36 @@ class FalAIOutpaintBackend(OutpaintBackend):
     def _upload_to_freeimage(self, image_path: str, cb: Optional[ProgressCallback]) -> str:
         p = Path(image_path)
 
-        img = Image.open(p)
-        # Only resize if image is unreasonably large (>4096px) to avoid upload issues
-        max_size = 4096
-        if img.width > max_size or img.height > max_size:
-            self._progress(cb, f"⚠ Image too large ({img.width}x{img.height}), resizing to fit {max_size}px", "resize")
-            img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
-
-        if img.mode in ("RGBA", "LA", "P"):
-            background = Image.new("RGB", img.size, (255, 255, 255))
-            if img.mode == "P":
-                img = img.convert("RGBA")
-            background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
-            img = background
-
         buffer = io.BytesIO()
-        img.save(buffer, format="JPEG", quality=85, optimize=True)
+        with Image.open(p) as opened:
+            img = opened
+
+            # Only resize if image is unreasonably large (>4096px) to avoid upload issues
+            max_size = 4096
+            if img.width > max_size or img.height > max_size:
+                self._progress(cb, f"⚠ Image too large ({img.width}x{img.height}), resizing to fit {max_size}px", "resize")
+                img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+
+            converted: Image.Image | None = None
+            if img.mode in ("RGBA", "LA", "P"):
+                background = Image.new("RGB", img.size, (255, 255, 255))
+                if img.mode == "P":
+                    src = img.convert("RGBA")
+                    try:
+                        background.paste(src, mask=src.split()[-1])
+                    finally:
+                        src.close()
+                else:
+                    background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+                converted = background
+                img = converted
+
+            try:
+                img.save(buffer, format="JPEG", quality=95, optimize=True)
+            finally:
+                if converted is not None:
+                    converted.close()
+
         buffer.seek(0)
         image_base64 = base64.b64encode(buffer.read()).decode("utf-8")
 
@@ -75,7 +91,11 @@ class FalAIOutpaintBackend(OutpaintBackend):
         output_format: str,
         enable_safety_checker: bool,
         progress_callback: Optional[ProgressCallback] = None,
+        cancel_event: Optional[threading.Event] = None,
     ) -> list[bytes]:
+        if cancel_event is not None and cancel_event.is_set():
+            raise CancelledError()
+
         image_url = self._upload_to_freeimage(image_path, progress_callback)
 
         headers = {"Authorization": f"Key {self.api_key}", "Content-Type": "application/json"}
@@ -106,12 +126,25 @@ class FalAIOutpaintBackend(OutpaintBackend):
             raise RuntimeError(f"Unexpected submit response: {submit_data}")
         self._progress(progress_callback, f"✓ Task created: {request_id}", "task")
 
+        def sleep_with_cancel(seconds: float) -> None:
+            if cancel_event is None:
+                time.sleep(seconds)
+                return
+            end = time.time() + seconds
+            while time.time() < end:
+                if cancel_event.is_set():
+                    raise CancelledError()
+                time.sleep(min(0.2, end - time.time()))
+
         # Poll
         attempt = 0
         max_attempts = 240
         while attempt < max_attempts:
-            time.sleep(5 if attempt < 24 else 10 if attempt < 60 else 15)
+            sleep_with_cancel(5 if attempt < 24 else 10 if attempt < 60 else 15)
             attempt += 1
+
+            if cancel_event is not None and cancel_event.is_set():
+                raise CancelledError()
 
             resp = requests.get(status_url, headers=status_headers, timeout=30)
             if resp.status_code == 404:
@@ -143,7 +176,10 @@ class FalAIOutpaintBackend(OutpaintBackend):
 
                 results: list[bytes] = []
                 for img in images:
-                    url = img.get("url") if isinstance(img, dict) else None
+                    if cancel_event is not None and cancel_event.is_set():
+                        raise CancelledError()
+
+                    url = img.get("url") if isinstance(img, dict) else (img if isinstance(img, str) else None)
                     if not url:
                         continue
                     self._progress(progress_callback, f"Downloading {url}", "download")

@@ -2,13 +2,13 @@
 setlocal
 
 :: ============================================================
-::  Kling UI - Build Executable
+::  Outpaint UI - Build Executable
 ::  Creates a standalone .exe using PyInstaller
 :: ============================================================
 
 echo.
 echo ============================================
-echo   Kling UI - Build Executable
+echo   Outpaint UI - Build Executable
 echo ============================================
 echo.
 
@@ -39,18 +39,18 @@ if %errorlevel% neq 0 (
 
 :: Install dependencies needed for build
 echo [2/4] Installing build dependencies...
-pip install requests Pillow rich tkinterdnd2 selenium webdriver-manager --quiet
+pip install requests Pillow pydantic rich tkinterdnd2 selenium webdriver-manager --quiet
 
 :: Clean previous builds
 echo [3/4] Cleaning previous builds...
 if exist "%SCRIPT_DIR%build" rmdir /s /q "%SCRIPT_DIR%build"
-if exist "%SCRIPT_DIR%dist\KlingUI" rmdir /s /q "%SCRIPT_DIR%dist\KlingUI"
+if exist "%SCRIPT_DIR%dist\OutpaintUI" rmdir /s /q "%SCRIPT_DIR%dist\OutpaintUI"
 
 :: Build the executable
 echo [4/4] Building executable...
 echo.
 cd /d "%SCRIPT_DIR%"
-pyinstaller kling_ui.spec --noconfirm
+pyinstaller outpaint_ui.spec --noconfirm
 
 if %errorlevel% neq 0 (
     echo.
@@ -65,43 +65,55 @@ if %errorlevel% neq 0 (
 :: Copy additional files to dist folder
 echo.
 echo Copying additional files...
-if not exist "%SCRIPT_DIR%dist\KlingUI" mkdir "%SCRIPT_DIR%dist\KlingUI"
+if not exist "%SCRIPT_DIR%dist\OutpaintUI" mkdir "%SCRIPT_DIR%dist\OutpaintUI"
 
 :: Copy Python source files that might be imported at runtime
-copy "%SCRIPT_DIR%kling_generator_falai.py" "%SCRIPT_DIR%dist\KlingUI\" >nul 2>&1
-copy "%SCRIPT_DIR%dependency_checker.py" "%SCRIPT_DIR%dist\KlingUI\" >nul 2>&1
+copy "%SCRIPT_DIR%outpaint_generator.py" "%SCRIPT_DIR%dist\OutpaintUI\" >nul 2>&1
+copy "%SCRIPT_DIR%outpaint_config.py" "%SCRIPT_DIR%dist\OutpaintUI\" >nul 2>&1
+copy "%SCRIPT_DIR%outpaint_diagnostics.py" "%SCRIPT_DIR%dist\OutpaintUI\" >nul 2>&1
+copy "%SCRIPT_DIR%dependency_checker.py" "%SCRIPT_DIR%dist\OutpaintUI\" >nul 2>&1
 
-:: Copy the kling_gui folder
-if exist "%SCRIPT_DIR%kling_gui" (
-    if not exist "%SCRIPT_DIR%dist\KlingUI\kling_gui" mkdir "%SCRIPT_DIR%dist\KlingUI\kling_gui"
-    xcopy "%SCRIPT_DIR%kling_gui\*.py" "%SCRIPT_DIR%dist\KlingUI\kling_gui\" /y >nul 2>&1
+:: Copy packages and workflow templates
+if exist "%SCRIPT_DIR%outpaint_gui" (
+    if not exist "%SCRIPT_DIR%dist\OutpaintUI\outpaint_gui" mkdir "%SCRIPT_DIR%dist\OutpaintUI\outpaint_gui"
+    xcopy "%SCRIPT_DIR%outpaint_gui\*.py" "%SCRIPT_DIR%dist\OutpaintUI\outpaint_gui\" /y >nul 2>&1
+)
+
+if exist "%SCRIPT_DIR%backends" (
+    if not exist "%SCRIPT_DIR%dist\OutpaintUI\backends" mkdir "%SCRIPT_DIR%dist\OutpaintUI\backends"
+    xcopy "%SCRIPT_DIR%backends\*.py" "%SCRIPT_DIR%dist\OutpaintUI\backends\" /y >nul 2>&1
+)
+
+if exist "%SCRIPT_DIR%comfyui_workflows" (
+    if not exist "%SCRIPT_DIR%dist\OutpaintUI\comfyui_workflows" mkdir "%SCRIPT_DIR%dist\OutpaintUI\comfyui_workflows"
+    xcopy "%SCRIPT_DIR%comfyui_workflows\*.json" "%SCRIPT_DIR%dist\OutpaintUI\comfyui_workflows\" /y >nul 2>&1
 )
 
 :: Create a launcher batch file for the built exe
-echo @echo off > "%SCRIPT_DIR%dist\KlingUI\Run_KlingUI.bat"
-echo cd /d "%%~dp0" >> "%SCRIPT_DIR%dist\KlingUI\Run_KlingUI.bat"
-echo start "" "KlingUI.exe" >> "%SCRIPT_DIR%dist\KlingUI\Run_KlingUI.bat"
+echo @echo off > "%SCRIPT_DIR%dist\OutpaintUI\Run_OutpaintUI.bat"
+echo cd /d "%%~dp0" >> "%SCRIPT_DIR%dist\OutpaintUI\Run_OutpaintUI.bat"
+echo start "" "OutpaintUI.exe" >> "%SCRIPT_DIR%dist\OutpaintUI\Run_OutpaintUI.bat"
 
 echo.
 echo ============================================
 echo   BUILD SUCCESSFUL!
 echo ============================================
 echo.
-echo Output location: %SCRIPT_DIR%dist\KlingUI\
+echo Output location: %SCRIPT_DIR%dist\OutpaintUI\
 echo.
 echo Files created:
-echo   - KlingUI.exe (main executable)
-echo   - Run_KlingUI.bat (launcher)
+echo   - OutpaintUI.exe (main executable)
+echo   - Run_OutpaintUI.bat (launcher)
 echo.
 echo To distribute:
-echo   1. Copy the entire 'dist\KlingUI' folder
-echo   2. Users run KlingUI.exe or Run_KlingUI.bat
+echo   1. Copy the entire 'dist\OutpaintUI' folder
+echo   2. Users run OutpaintUI.exe or Run_OutpaintUI.bat
 echo.
-echo NOTE: First run will create kling_config.json for settings
+echo NOTE: First run will create outpaint_config.json for settings
 echo.
 
 :: Open the output folder
-explorer "%SCRIPT_DIR%dist\KlingUI"
+explorer "%SCRIPT_DIR%dist\OutpaintUI"
 
 pause
 endlocal

@@ -1,10 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""
-PyInstaller spec file for Kling UI
-Build with: pyinstaller kling_ui.spec
+"""PyInstaller spec file for Outpaint UI.
+
+Build with: pyinstaller outpaint_ui.spec
 """
 
-import sys
 from pathlib import Path
 
 block_cipher = None
@@ -12,19 +11,14 @@ block_cipher = None
 # Get the distribution directory
 dist_dir = Path(SPECPATH)
 
-# Collect all Python files in kling_gui package
-kling_gui_files = []
-kling_gui_path = dist_dir / 'kling_gui'
-if kling_gui_path.exists():
-    for py_file in kling_gui_path.glob('*.py'):
-        kling_gui_files.append((str(py_file), 'kling_gui'))
-
 # Data files to include
 datas = [
-    # Include the kling_gui package
-    (str(dist_dir / 'kling_gui'), 'kling_gui'),
-    # Include generator module
-    (str(dist_dir / 'kling_generator_falai.py'), '.'),
+    (str(dist_dir / 'outpaint_gui'), 'outpaint_gui'),
+    (str(dist_dir / 'backends'), 'backends'),
+    (str(dist_dir / 'comfyui_workflows'), 'comfyui_workflows'),
+    (str(dist_dir / 'outpaint_generator.py'), '.'),
+    (str(dist_dir / 'outpaint_config.py'), '.'),
+    (str(dist_dir / 'outpaint_diagnostics.py'), '.'),
     # Include dependency checker
     (str(dist_dir / 'dependency_checker.py'), '.'),
     # Include path utilities for frozen exe compatibility
@@ -34,6 +28,12 @@ datas = [
 # Hidden imports that PyInstaller might miss
 hiddenimports = [
     'path_utils',
+    'outpaint_generator',
+    'outpaint_config',
+    'outpaint_diagnostics',
+    'backends',
+    'backends.falai_backend',
+    'backends.comfyui_backend',
     'tkinter',
     'tkinter.ttk',
     'tkinter.filedialog',
@@ -42,6 +42,7 @@ hiddenimports = [
     'requests',
     'PIL',
     'PIL.Image',
+    'pydantic',
     'rich',
     'rich.console',
     'rich.progress',
@@ -65,7 +66,7 @@ hiddenimports = [
 ]
 
 a = Analysis(
-    [str(dist_dir / 'kling_automation_ui.py')],
+    [str(dist_dir / 'outpaint_ui.py')],
     pathex=[str(dist_dir)],
     binaries=[],
     datas=datas,
@@ -103,7 +104,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='KlingUI',
+    name='OutpaintUI',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -125,5 +126,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='KlingUI',
+    name='OutpaintUI',
 )

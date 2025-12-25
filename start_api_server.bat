@@ -22,6 +22,12 @@ if errorlevel 1 (
     pip install -r requirements_api.txt
 )
 
+REM Kill any existing process on port 8000
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8000 ^| findstr LISTENING') do (
+    echo [INFO] Killing existing process on port 8000 (PID: %%a^)
+    taskkill /PID %%a /F >nul 2>&1
+)
+
 REM Start the API server
 echo [INFO] Starting API server on http://localhost:8000
 echo [INFO] API docs available at: http://localhost:8000/docs
