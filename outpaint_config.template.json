@@ -1,0 +1,27 @@
+{
+  "backend": "falai",
+  "falai_api_key": "",
+  "enable_safety_checker": true,
+  "comfyui_url": "http://127.0.0.1:8188",
+  "comfyui_workflow_path": "comfyui_workflows/flux_outpaint.json",
+  "output_folder": "",
+  "use_source_folder": true,
+  "output_suffix": "-expanded",
+  "output_format": "png",
+  "zoom_out_percentage": 0,
+  "expand_mode": "percentage",
+  "expand_percentage": 30,
+  "expand_left": 0,
+  "expand_right": 0,
+  "expand_top": 0,
+  "expand_bottom": 0,
+  "num_images": 1,
+  "prompt": "",
+  "workers": {
+    "falai": 5,
+    "comfyui": 2
+  },
+  "allow_reprocess": true,
+  "reprocess_mode": "increment",
+  "verbose_logging": true
+}

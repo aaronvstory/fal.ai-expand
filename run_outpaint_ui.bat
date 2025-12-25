@@ -2,7 +2,7 @@
 setlocal
 
 :: ============================================================
-::  Kling UI Launcher - Auto-venv setup with dependency check
+::  Outpaint UI Launcher - Auto-venv setup with dependency check
 :: ============================================================
 
 :: Get the directory of the batch file
@@ -12,7 +12,7 @@ set BATCH_DIR=%~dp0
 if exist "%BATCH_DIR%nul" del /f /q "%BATCH_DIR%nul" 2>nul
 
 :: Set paths (relative to batch file)
-set SCRIPT_PATH=%BATCH_DIR%kling_automation_ui.py
+set SCRIPT_PATH=%BATCH_DIR%outpaint_ui.py
 set VENV_DIR=%BATCH_DIR%venv
 set VENV_PYTHON=%VENV_DIR%\Scripts\python.exe
 set VENV_PIP=%VENV_DIR%\Scripts\pip.exe
@@ -76,8 +76,8 @@ if not exist "%VENV_PYTHON%" (
     if exist "%REQUIREMENTS%" (
         "%VENV_PIP%" install -r "%REQUIREMENTS%" --quiet
     ) else (
-        echo Installing: requests pillow rich tkinterdnd2 selenium webdriver-manager
-        "%VENV_PIP%" install requests pillow rich tkinterdnd2 selenium webdriver-manager --quiet
+        echo Installing: requests pillow pydantic rich tkinterdnd2 selenium webdriver-manager
+        "%VENV_PIP%" install requests pillow pydantic rich tkinterdnd2 selenium webdriver-manager --quiet
     )
 
     if %errorlevel% neq 0 (
@@ -89,7 +89,7 @@ if not exist "%VENV_PYTHON%" (
 
     :: Verify critical packages
     echo [4/4] Verifying installation...
-    "%VENV_PYTHON%" -c "import requests, PIL, rich, tkinterdnd2" >nul 2>&1
+    "%VENV_PYTHON%" -c "import requests, PIL, rich, tkinterdnd2, pydantic" >nul 2>&1
     if %errorlevel% neq 0 (
         echo WARNING: Some packages may not have installed correctly.
         echo Attempting to reinstall critical packages...
@@ -103,13 +103,13 @@ if not exist "%VENV_PYTHON%" (
     echo.
 ) else (
     :: Venv exists, quick check if packages are there
-    "%VENV_PYTHON%" -c "import requests, PIL, rich" >nul 2>&1
+    "%VENV_PYTHON%" -c "import requests, PIL, rich, pydantic" >nul 2>&1
     if %errorlevel% neq 0 (
         echo Reinstalling missing packages...
         if exist "%REQUIREMENTS%" (
             "%VENV_PIP%" install -r "%REQUIREMENTS%" --quiet
         ) else (
-            "%VENV_PIP%" install requests pillow rich tkinterdnd2 selenium webdriver-manager --quiet
+            "%VENV_PIP%" install requests pillow pydantic rich tkinterdnd2 selenium webdriver-manager --quiet
         )
     )
 
@@ -122,7 +122,7 @@ if not exist "%VENV_PYTHON%" (
 )
 
 :: Run the Python script using venv Python
-echo Starting Kling UI...
+echo Starting Outpaint UI...
 echo.
 "%VENV_PYTHON%" -u "%SCRIPT_PATH%"
 set EXIT_CODE=%errorlevel%

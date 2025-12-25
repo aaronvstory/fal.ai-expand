@@ -1,11 +1,4 @@
-"""
-Dependency Checker - Verify and install all required dependencies for Kling UI.
-
-Checks:
-- Python packages (pip)
-- External tools (FFmpeg)
-- Optional enhancements (tkinterdnd2 for drag-drop)
-"""
+"""Dependency checker for Outpaint UI."""
 
 import subprocess
 import sys
@@ -41,6 +34,20 @@ PYTHON_DEPENDENCIES = [
         pip_name="Pillow",
         required=True,
         description="Image processing library"
+    ),
+    Dependency(
+        name="Pydantic",
+        import_name="pydantic",
+        pip_name="pydantic",
+        required=True,
+        description="Config schema validation"
+    ),
+    Dependency(
+        name="Rich",
+        import_name="rich",
+        pip_name="rich",
+        required=True,
+        description="CLI formatting and progress"
     ),
     Dependency(
         name="TkinterDnD2",
@@ -85,14 +92,14 @@ EXTERNAL_TOOLS = [
         command="ffmpeg",
         args=["-version"],
         required=False,
-        description="Video processing for Loop Video feature",
+        description="Optional external tool",
         install_hint="Download from https://ffmpeg.org/download.html or install via: winget install FFmpeg"
     ),
 ]
 
 
 class DependencyChecker:
-    """Check and install dependencies for Kling UI."""
+    """Check and install dependencies for Outpaint UI."""
 
     # ANSI color codes
     GREEN = "\033[92m"

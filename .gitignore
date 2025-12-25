@@ -23,3 +23,22 @@ node_modules/
 
 # OS specific
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+venv/
+.venv/
+env/
+.env/
+build/
+dist/
+*.spec
+
+# Config with secrets (use outpaint_config.template.json as reference)
+outpaint_config.json
+
+# History snapshots
+.history/

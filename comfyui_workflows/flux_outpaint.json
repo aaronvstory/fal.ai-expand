@@ -1,0 +1,129 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "LoadImage",
+      "inputs": {
+        "image": ""
+      }
+    },
+    "2": {
+      "class_type": "ImagePadForOutpaint",
+      "inputs": {
+        "image": [
+          "1",
+          0
+        ],
+        "left": 200,
+        "right": 200,
+        "top": 200,
+        "bottom": 200,
+        "feathering": 20
+      }
+    },
+    "3": {
+      "class_type": "VAEEncode",
+      "inputs": {
+        "pixels": [
+          "2",
+          0
+        ],
+        "vae": [
+          "9",
+          0
+        ]
+      }
+    },
+    "4": {
+      "class_type": "DualCLIPLoader",
+      "inputs": {
+        "clip_name1": "clip_l.safetensors",
+        "clip_name2": "t5xxl_fp8_e4m3fn.safetensors",
+        "type": "flux"
+      }
+    },
+    "5": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "",
+        "clip": [
+          "4",
+          0
+        ]
+      }
+    },
+    "6": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "blurry, artifacts, seam",
+        "clip": [
+          "4",
+          0
+        ]
+      }
+    },
+    "7": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "flux1-fill-dev.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "8": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "7",
+          0
+        ],
+        "positive": [
+          "5",
+          0
+        ],
+        "negative": [
+          "6",
+          0
+        ],
+        "latent_image": [
+          "3",
+          0
+        ],
+        "seed": 0,
+        "steps": 20,
+        "cfg": 7.5,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "batch_size": 1,
+        "denoise": 1.0
+      }
+    },
+    "9": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "pixel_space"
+      }
+    },
+    "10": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "8",
+          0
+        ],
+        "vae": [
+          "9",
+          0
+        ]
+      }
+    },
+    "11": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "10",
+          0
+        ],
+        "filename_prefix": "outpaint"
+      }
+    }
+  }
+}

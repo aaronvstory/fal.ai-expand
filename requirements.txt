@@ -1,10 +1,14 @@
-# Kling UI - Required Dependencies
-# ================================
+# Outpaint UI - Required Dependencies
+# ==================================
 
 # Core Requirements (REQUIRED)
 requests
 Pillow
+pydantic
 rich
+
+# Testing (DEV)
+pytest
 
 # GUI Drag-Drop Support (REQUIRED for GUI mode)
 tkinterdnd2

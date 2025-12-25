@@ -5,6 +5,8 @@ Provides functions to get correct paths whether running as script or frozen exe.
 
 import sys
 import os
+from pathlib import Path
+from typing import Optional
 
 
 def get_app_dir() -> str:
@@ -48,7 +50,7 @@ def get_resource_dir() -> str:
         return os.path.dirname(os.path.abspath(sys.argv[0]))
 
 
-def get_config_path(filename: str = "kling_config.json") -> str:
+def get_config_path(filename: str = "outpaint_config.json") -> str:
     """
     Get the full path for a configuration file.
     Config files are stored next to the executable/script.
@@ -62,7 +64,7 @@ def get_config_path(filename: str = "kling_config.json") -> str:
     return os.path.join(get_app_dir(), filename)
 
 
-def get_log_path(filename: str = "kling_gui.log") -> str:
+def get_log_path(filename: str = "outpaint_gui.log") -> str:
     """
     Get the full path for a log file.
     Log files are stored next to the executable/script.
@@ -84,6 +86,40 @@ def get_crash_log_path() -> str:
         str: Full path to crash_log.txt
     """
     return os.path.join(get_app_dir(), "crash_log.txt")
+
+
+def detect_comfyui_path() -> Optional[str]:
+    """Best-effort ComfyUI install path detection (folder containing main.py)."""
+
+    candidates: list[str] = []
+    env = os.getenv("COMFYUI_PATH")
+    if env:
+        candidates.append(env)
+
+    candidates.extend(
+        [
+            "G:/pinokio/api/comfy.git/app",
+            "C:/pinokio/api/comfy.git/app",
+            "D:/pinokio/api/comfy.git/app",
+            "~/.pinokio/api/comfy.git/app",
+            "~/pinokio/api/comfy.git/app",
+            "C:/AI/ComfyUI",
+            "D:/AI/ComfyUI",
+            "~/ComfyUI",
+            "~/.local/ComfyUI",
+        ]
+    )
+
+    for raw in candidates:
+        try:
+            p = Path(os.path.expanduser(raw))
+            if p.is_file() and p.name.lower() == "main.py":
+                p = p.parent
+            if (p / "main.py").exists() or (p / "comfy" / "__init__.py").exists():
+                return str(p)
+        except Exception:
+            continue
+    return None
 
 
 def is_frozen() -> bool:
