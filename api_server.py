@@ -128,7 +128,7 @@ async def get_config():
 
         return {
             "config": config_dict,
-            "auto_fallback": generator._fallback_attempted,
+            "auto_fallback": getattr(generator, "_fallback_attempted", False),
         }
     except Exception as e:
         logger.error(f"Failed to get config: {e}")
@@ -238,7 +238,7 @@ async def outpaint(
             return JSONResponse({
                 "success": True,
                 "backend_used": backend_used,
-                "fallback_triggered": request_generator._fallback_attempted,
+                "fallback_triggered": getattr(request_generator, "_fallback_attempted", False),
                 "output_path": str(output_path),
                 "num_outputs": len(result.output_paths),
                 "message": "Outpaint completed successfully",

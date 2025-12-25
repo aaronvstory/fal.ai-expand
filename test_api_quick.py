@@ -16,7 +16,7 @@ def test_health():
         response = requests.get(f"{API_URL}/health", timeout=5)
         if response.status_code == 200:
             data = response.json()
-            print(f"✓ Health check passed")
+            print("✓ Health check passed")
             print(f"  Backend: {data['backend']['type']}")
             print(f"  Available: {data['backend']['available']}")
             print(f"  Message: {data['backend']['message']}")
@@ -55,7 +55,7 @@ def test_outpaint():
 
         if response.status_code == 200:
             data = response.json()
-            print(f"✓ Outpaint succeeded")
+            print("✓ Outpaint succeeded")
             print(f"  Backend used: {data['backend_used']}")
             print(f"  Fallback triggered: {data['fallback_triggered']}")
             print(f"  Outputs: {data['num_outputs']}")
@@ -75,7 +75,7 @@ def main():
     print("╚════════════════════════════════════════╝\n")
 
     print(f"Testing API at: {API_URL}")
-    print(f"Make sure the server is running!\n")
+    print("Make sure the server is running!\n")
 
     results = []
     results.append(("Health Check", test_health()))

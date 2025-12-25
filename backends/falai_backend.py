@@ -20,8 +20,9 @@ class FalAIOutpaintBackend(OutpaintBackend):
         self.api_key = api_key
         self.queue_url = "https://queue.fal.run/fal-ai/image-apps-v2/outpaint"
 
-        # Freeimage.host guest API key (override via env var)
-        self.freeimage_key = os.getenv("FREEIMAGE_API_KEY", "6d207e02198a847aa98d0a2a901485a5")
+        # Freeimage.host API key - required for image upload
+        # Default public guest key available in .env.example if needed
+        self.freeimage_key = os.getenv("FREEIMAGE_API_KEY", "")
 
     def _progress(self, cb: Optional[ProgressCallback], message: str, level: str = "info"):
         if cb:
