@@ -53,7 +53,7 @@ def default_config_dict() -> dict:
         "use_source_folder": True,
         "output_suffix": "-expanded",
         "output_format": "png",
-        "zoom_out_percentage": 30,
+        "zoom_out_percentage": 0,
         "expand_left": 200,
         "expand_right": 200,
         "expand_top": 200,

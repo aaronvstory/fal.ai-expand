@@ -66,6 +66,7 @@ def save_config_file(path: str, data: dict) -> None:
             if tmp.exists():
                 tmp.unlink()
         except Exception:
+            # Cleanup is best-effort only; ignore any errors from unlinking temp file
             pass
 
 
@@ -80,7 +81,7 @@ def default_config_dict() -> dict:
         "use_source_folder": True,
         "output_suffix": "-expanded",
         "output_format": "png",
-        "zoom_out_percentage": 30,
+        "zoom_out_percentage": 0,
         "expand_mode": "percentage",
         "expand_percentage": 30,
         "expand_left": 0,

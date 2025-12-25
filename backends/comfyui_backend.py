@@ -199,6 +199,7 @@ class ComfyUIOutpaintBackend(OutpaintBackend):
             if vram_gb is not None and vram_gb < 12.0:
                 return False, f"GPU VRAM too low for FLUX: {vram_gb:.1f}GB detected (need >= 12GB)"
         except Exception:
+            # VRAM stats parsing is best-effort only; ignore any errors and continue without a VRAM check
             pass
 
         try:

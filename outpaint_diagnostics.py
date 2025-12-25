@@ -41,7 +41,6 @@ def run_diagnostics(config: dict[str, Any]) -> Tuple[str, bool]:
     row("ComfyUI Path", bool(comfy_path), comfy_path or "not found")
 
     comfy_ok = True
-    comfy_msg = "skipped"
     try:
         from backends.comfyui_backend import ComfyUIOutpaintBackend
 

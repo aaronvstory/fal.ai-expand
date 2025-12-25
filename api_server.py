@@ -251,11 +251,10 @@ async def outpaint(
         raise HTTPException(status_code=500, detail=f"Outpaint failed: {str(e)}")
 
     finally:
-        # Cleanup temp files (optional - keep for debugging)
-        # if temp_dir and temp_dir.exists():
-        #     import shutil
-        #     shutil.rmtree(temp_dir, ignore_errors=True)
-        pass
+        # Cleanup temp files
+        if temp_dir and temp_dir.exists():
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 @app.post("/outpaint/batch")
