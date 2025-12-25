@@ -60,7 +60,7 @@ class ConfigPanel(tk.Frame):
         self.output_suffix = s("output_suffix", "-expanded")
         self.output_format = s("output_format", "png")
 
-        self.zoom_out_percentage = i("zoom_out_percentage", 30)
+        self.zoom_out_percentage = i("zoom_out_percentage", 0)
         self.expand_mode = s("expand_mode", "percentage")
         self.expand_percentage = i("expand_percentage", 30)
         self.expand_left = i("expand_left", 0)
@@ -411,20 +411,6 @@ class ConfigPanel(tk.Frame):
         """Build outpaint controls section."""
         parent.columnconfigure(1, weight=1)
 
-        # Warning label about zoom behavior
-        warning_frame = tk.Frame(parent, bg="#B43232", relief="solid", borderwidth=1)
-        warning_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
-
-        tk.Label(
-            warning_frame,
-            text="⚠ Zoom % SHRINKS the image (30 = shrink to 30%). Use Expand % instead!",
-            bg="#B43232",
-            fg="white",
-            font=("Segoe UI", 8, "bold"),
-            wraplength=400,
-            justify="left"
-        ).pack(padx=8, pady=4)
-
         # Zoom control
         tk.Label(
             parent,
@@ -434,7 +420,7 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=1, column=0, sticky="w", pady=3)
+        ).grid(row=0, column=0, sticky="w", pady=3)
 
         tk.Scale(
             parent,
@@ -447,7 +433,7 @@ class ConfigPanel(tk.Frame):
             fg=COLORS["text_light"],
             highlightthickness=0,
             troughcolor=COLORS["bg_input"],
-        ).grid(row=1, column=1, sticky="ew", pady=3)
+        ).grid(row=0, column=1, sticky="ew", pady=3)
 
         # Expand mode selector
         tk.Label(
@@ -458,10 +444,10 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=2, column=0, sticky="w", pady=3)
+        ).grid(row=1, column=0, sticky="w", pady=3)
 
         mode_frame = tk.Frame(parent, bg=COLORS["bg_panel"])
-        mode_frame.grid(row=2, column=1, sticky="w", pady=3)
+        mode_frame.grid(row=1, column=1, sticky="w", pady=3)
 
         tk.Radiobutton(
             mode_frame,
@@ -496,7 +482,7 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=3, column=0, sticky="w", pady=3)
+        ).grid(row=2, column=0, sticky="w", pady=3)
 
         self._expand_pct_spin = tk.Spinbox(
             parent,
@@ -506,9 +492,11 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_input"],
             fg=COLORS["text_light"],
             insertbackground="white",
+            disabledbackground=COLORS["bg_input"],
+            disabledforeground=COLORS["text_dim"],
             width=8,
         )
-        self._expand_pct_spin.grid(row=3, column=1, sticky="w", pady=3)
+        self._expand_pct_spin.grid(row=2, column=1, sticky="w", pady=3)
 
         # Helper function for pixel spinbox creation
         def create_spinbox(var: tk.IntVar) -> tk.Spinbox:
@@ -520,6 +508,8 @@ class ConfigPanel(tk.Frame):
                 bg=COLORS["bg_input"],
                 fg=COLORS["text_light"],
                 insertbackground="white",
+                disabledbackground=COLORS["bg_input"],
+                disabledforeground=COLORS["text_dim"],
                 width=8,
             )
 
@@ -532,9 +522,9 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=4, column=0, sticky="w", pady=3)
+        ).grid(row=3, column=0, sticky="w", pady=3)
         w = create_spinbox(self.expand_left)
-        w.grid(row=4, column=1, sticky="w", pady=3)
+        w.grid(row=3, column=1, sticky="w", pady=3)
         self._expand_px_spins.append(w)
 
         tk.Label(
@@ -545,9 +535,9 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=5, column=0, sticky="w", pady=3)
+        ).grid(row=4, column=0, sticky="w", pady=3)
         w = create_spinbox(self.expand_right)
-        w.grid(row=5, column=1, sticky="w", pady=3)
+        w.grid(row=4, column=1, sticky="w", pady=3)
         self._expand_px_spins.append(w)
 
         tk.Label(
@@ -558,9 +548,9 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=6, column=0, sticky="w", pady=3)
+        ).grid(row=5, column=0, sticky="w", pady=3)
         w = create_spinbox(self.expand_top)
-        w.grid(row=6, column=1, sticky="w", pady=3)
+        w.grid(row=5, column=1, sticky="w", pady=3)
         self._expand_px_spins.append(w)
 
         tk.Label(
@@ -571,9 +561,9 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=7, column=0, sticky="w", pady=3)
+        ).grid(row=6, column=0, sticky="w", pady=3)
         w = create_spinbox(self.expand_bottom)
-        w.grid(row=7, column=1, sticky="w", pady=3)
+        w.grid(row=6, column=1, sticky="w", pady=3)
         self._expand_px_spins.append(w)
 
         # Num images
@@ -585,7 +575,7 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=8, column=0, sticky="w", pady=3)
+        ).grid(row=7, column=0, sticky="w", pady=3)
 
         tk.Spinbox(
             parent,
@@ -595,8 +585,10 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_input"],
             fg=COLORS["text_light"],
             insertbackground="white",
+            disabledbackground=COLORS["bg_input"],
+            disabledforeground=COLORS["text_dim"],
             width=8,
-        ).grid(row=8, column=1, sticky="w", pady=3)
+        ).grid(row=7, column=1, sticky="w", pady=3)
 
         # Prompt
         tk.Label(
@@ -607,7 +599,7 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_panel"],
             fg=COLORS["text_dim"],
             font=("Segoe UI", 9)
-        ).grid(row=9, column=0, sticky="w", pady=3)
+        ).grid(row=8, column=0, sticky="w", pady=3)
 
         tk.Entry(
             parent,
@@ -615,7 +607,7 @@ class ConfigPanel(tk.Frame):
             bg=COLORS["bg_input"],
             fg=COLORS["text_light"],
             insertbackground="white"
-        ).grid(row=9, column=1, sticky="ew", pady=3)
+        ).grid(row=8, column=1, sticky="ew", pady=3)
 
     def _browse_workflow(self) -> None:
         p = filedialog.askopenfilename(title="Select workflow JSON", filetypes=[("JSON", "*.json"), ("All files", "*.*")])
